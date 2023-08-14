@@ -33,44 +33,10 @@
         <pre class="controls--">{{ labelData }}</pre>
       </div>
     </div>
-    <div class="info">
-      <h4>
-        Блок 9 с всеми данными (они обёрнуты в v-if) так, что для проверки
-        попользуйтесь функционалом.
-      </h4>
-      <div class="inputs-info">
-        <p v-if="infoBlockData.oldProduct.price">
-          Input price value changed from {{ infoBlockData.oldProduct.price }} to
-          {{ product.price }}
-        </p>
-        <p v-if="infoBlockData.oldProduct.amount">
-          Input amount value changed from
-          {{ infoBlockData.oldProduct.amount }} to
-          {{ product.amount }}
-        </p>
-        <p v-if="product.sum">
-          Input sum value changed from
-          {{ infoBlockData.oldProduct.sum || 0 }} to
-          {{ product.sum }}
-        </p>
-      </div>
-      <div class="send-data">
-        <div class="before" v-if="infoBlockData.oldProductData">
-          <p>Было на сервере до отправки данных:</p>
-          <pre>{{ infoBlockData.oldProductData }}</pre>
-        </div>
-        <div class="after" v-if="infoBlockData.newProductData">
-          <p>Данные отправленные на сервер:</p>
-          <pre>{{ infoBlockData.newProductData }}</pre>
-        </div>
-      </div>
-      <div class="last-reponse" v-if="infoBlockData.lastServerResponse">
-        <p>
-          Последний статус ответа с сервера:
-          {{ infoBlockData.lastServerResponse }}
-        </p>
-        <p>Последние данные (успешного) ответа с сервера:</p>
-        <pre> {{ infoBlockData.newProductData }} </pre>
+    <h3>Измененные данные:</h3>
+    <div v-if="infoBlock" class="info-block">
+      <div v-for="(data, index) in infoBlock" :key="index">
+        <div v-html="data"></div>
       </div>
     </div>
   </div>
@@ -85,15 +51,13 @@
       return {
         labelData: null,
         nonce: null,
+        lastServerResponse: null,
         product: {
           price: 0,
           amount: 0,
           sum: 0,
         },
-        infoBlockData: {
-          oldProduct: {},
-          lastServerResponse: null,
-        },
+        infoBlock: [],
       }
     },
     methods: {
@@ -111,20 +75,51 @@
         }
       },
       postProductData() {
+        const productData = {nonce: this.nonce, ...this.product}
+
         if (this.product.amount % 2 === 1) {
-          this.infoBlockData.lastServerResponse = {success: false}
+          this.lastServerResponse = {success: false}
+          this.infoBlock.unshift(`
+          <p>Попытка отправить данные: </p>
+          <small>
+           ${JSON.stringify(productData).trim()}
+          </small>
+          `)
+          this.infoBlock.unshift(`
+          <p style="color: red">
+            Ошибка при запросе на сервер. Amount должен быть чётным числом: статус {success: false}
+          </p>
+          `)
           return
         }
 
         this.nonce++
-        const productData = {nonce: this.nonce, ...this.product}
 
-        this.infoBlockData.oldProductData = this.getProductDataFromServer
-        this.infoBlockData.newProductData = productData
+        let beforeSendData = JSON.stringify(
+          window.localStorage.getItem("product")
+        )
+
+        if (!!beforeSendData) beforeSendData = "данных не было"
+
+        let infoData = `
+        <div class="before">
+          <p>Данные отправленные на сервер:</p>
+          <small>${JSON.stringify(productData)}</small>
+        </div>
+        <p style="color: green">
+          Успешный ответ с сервера. Статус: {success: true}
+        </p>
+        <div class="after">
+          <p>Было на сервере до отправки данных:</p>
+          <small>${beforeSendData}</small>
+        </div>
+        
+        `
+        this.infoBlock.unshift(infoData)
 
         setTimeout(() => {
           window.localStorage.setItem("product", JSON.stringify(productData))
-          this.infoBlockData.lastServerResponse = {success: true}
+          this.lastServerResponse = {success: true}
           this.labelData = productData
         }, 1000)
       },
@@ -140,7 +135,6 @@
           ? this.getProductDataFromServer.nonce
           : 0
       nonceFromServer ? (this.nonce = nonceFromServer) : (this.nonce = 0)
-      this.infoBlockData.oldProductData = this.getProductDataFromServer
     },
     computed: {
       computedProductCopy() {
@@ -153,7 +147,13 @@
     watch: {
       computedProductCopy: {
         handler(newVal, oldVal) {
-          this.infoBlockData.oldProduct = oldVal
+          for (const i in newVal) {
+            if (newVal[i] !== oldVal[i]) {
+              this.infoBlock.unshift(
+                `<p>Значение в ${i} инпуте изменилось с ${oldVal[i]} на ${newVal[i]}</p>`
+              )
+            }
+          }
         },
         deep: true,
       },
@@ -175,9 +175,8 @@
     margin-left: 20px;
   }
 
-  .info {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
+  .info-block {
+    max-height: 600px;
+    overflow-y: scroll;
   }
 </style>
