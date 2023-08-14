@@ -69,7 +69,7 @@
           Последний статус ответа с сервера:
           {{ infoBlockData.lastServerResponse }}
         </p>
-        <p>Последние данные ответа с сервера:</p>
+        <p>Последние данные (успешного) ответа с сервера:</p>
         <pre> {{ infoBlockData.newProductData }} </pre>
       </div>
     </div>
@@ -92,6 +92,7 @@
         },
         infoBlockData: {
           oldProduct: {},
+          lastServerResponse: null,
         },
       }
     },
@@ -133,12 +134,12 @@
     },
     beforeMount() {
       this.labelData = this.getProductDataFromServer
-      const nonceFromServer = this.getProductDataFromServer.nonce
-        ? this.getProductDataFromServer.nonce
-        : 0
 
+      const nonceFromServer =
+        this.getProductDataFromServer && this.getProductDataFromServer.nonce
+          ? this.getProductDataFromServer.nonce
+          : 0
       nonceFromServer ? (this.nonce = nonceFromServer) : (this.nonce = 0)
-
       this.infoBlockData.oldProductData = this.getProductDataFromServer
     },
     computed: {
